@@ -67,16 +67,18 @@ function sleep(ms) {
 (async function() {
     let cnt = 0
     let query_time = 0;
-    while (true) {
+    const totalpage = 70;
+    while (cnt<totalpage) {
+        cnt++
+        await sleep(3000)
 
-        await sleep(10000)
-        console.log(`第${++query_time}次查询，第${cnt%20+1}页！`)
+        console.log(`第${++query_time}次查询，第${totalpage+1-cnt}页！`)
         try {
 
             const pets = await axios.post(apiQueryPetsOnSale, {
-                "pageNo": cnt%20+1,
+                "pageNo": totalpage+1-cnt,
                 "pageSize": 20,
-                "querySortType": "CREATETIME_DESC",//RAREDEGREE_DESC //CREATETIME_ASC //AMOUNT_ASC
+                "querySortType": "RAREDEGREE_DESC",//RAREDEGREE_DESC //CREATETIME_ASC //AMOUNT_ASC
                 "petIds": [],
                 "lastAmount": null,
                 "lastRareDegree": null,
@@ -84,7 +86,8 @@ function sleep(ms) {
                 "appId": 1,
                 "tpl": ""
             })
-            cnt++
+
+            console.log(`返回${pets.data.data.petsOnSale.length}条结果！`)
 
             // console.log(`第${++query_time}次查询！`)
             // console.log("目前最低价：" + pets.data.data.petsOnSale[0].amount)
@@ -97,65 +100,71 @@ function sleep(ms) {
                     continue
                 }
 
-                if(pet.rareDegree>=3){
-                    const petDetail = await axios.post(apiQueryPetById, {
-                        "petId":pet.petId,
-                        "requestId":time,
-                        "appId":1,
-                        "tpl":"",
-                        "timeStamp":null,
-                        "nounce":null,
-                        "token":null}
-                    )
+                const petDetail = await axios.post(apiQueryPetById, {
+                    "petId":pet.petId,
+                    "requestId":time,
+                    "appId":1,
+                    "tpl":"",
+                    "timeStamp":null,
+                    "nounce":null,
+                    "token":null}
+                )
 
-                    let attributes = petDetail.data.data.attributes;
-                    var stars = 0;
-                    var anflag = 0;
-                    var bmflag = 0;
-                    for(var j=0; j<attributes.length; j++){
-                        var attr = attributes[j];
-                        if(attr.rareDegree=="稀有"){
-                            stars++;
-                        }
-                        if(attr.value=="天使"){
-                            anflag=1;
-                        }
-                        if(anflag==1 && attr.value=="米色"){
-                            anflag=2;
-                        }
-                        if(anflag==1 && attr.value=="粉晶"){
-                            anflag=3;
-                        }
-                        if(anflag==1 && attr.value=="白眉斗眼"){
-                            bmflag=1;
-                        }
+                let attributes = petDetail.data.data.attributes;
+                var stars = 0;
+                var anflag = 0;
+                var bmflag = 0;
+                var attrstr = "";
+                for(var j=0; j<attributes.length; j++){
+                    var attr = attributes[j];
+                    if(attr.rareDegree=="稀有"){
+                        stars++;
+                        attrstr += "["+attr.value+"]";
                     }
 
-                    if(stars>=5){
-                        if(pet.amount<=5000)
-                            console.log("++++++++++++++++++ "+pet.petId +" | "+pet.amount +" | "+anflag +" | "+bmflag);
-                        else if(anflag >= 1)
-                            console.log("================== "+pet.petId +" | "+pet.amount +" | "+anflag +" | "+bmflag);
-                    }else if(stars==4){
-                        if(pet.amount<=3000 || (pet.amount<=5000 && anflag==1))
-                            console.log("@@@@@@@@@@@@@@@@@@ "+pet.petId +" | "+pet.amount +" | "+anflag +" | "+bmflag);
-                        else if(anflag > 1 || bmflag==1)
-                            console.log("****************** "+pet.petId +" | "+pet.amount +" | "+anflag +" | "+bmflag);
-                        // else if(bmflag == 1)
-                        //     console.log("^^^^^^^^^^^^^^^^^^ "+pet.petId +" | "+pet.amount);
-                        continue;
-                    }else{
-                        if(anflag > 1 || bmflag == 1)
-                            console.log("%%%%%%%%%%%%%%%%%% "+pet.petId +" | "+pet.amount +" | "+bmflag);
-                        if(pet.amount<1000)
-                            console.log("@@@@@@@@@@@@@@@@@@ "+pet.petId);
+                    // if(attr.value=="天使"){
+                    //     anflag=1;
+                    // }
+                    if( (attr.value == "天使" || attr.value == "白眉斗眼" || attr.value == "樱桃")){
+
+                        anflag=anflag+1;
                     }
-                }else{
-                    console.log(res.data)
+
+                    if(attr.value == "米色" || attr.value == "三瓣"){
+                        attrstr += "["+attr.value+"]";
+                    }
+
+                    if((attr.name=="体型" && attr.rareDegree==null) || (attr.name=="眼睛" && attr.rareDegree==null)){
+                        bmflag += 1;
+                    }
                 }
-                // console.log(res.data)
 
+                if(stars>=6){
+                    if(pet.amount<=350000 || anflag + bmflag>=2 ){
+                        console.log("%%%%%%%%%%%%%%%%% "+pet.petId +" | "+pet.amount +" | "+anflag +" | "+bmflag +" | "+attrstr);
+                    }
 
+                }
+                if(stars==5){
+                    if(pet.amount<=20000 || (anflag==1))
+                        console.log("++++++++++++++++++ "+pet.petId +" | "+pet.amount +" | "+anflag +" | "+bmflag +" | "+attrstr);
+                    else if (anflag > 1 )
+                        console.log("================== "+pet.petId +" | "+pet.amount +" | "+anflag +" | "+bmflag +" | "+attrstr);
+                }else if(stars==4){
+                    if(pet.amount<=12000 || (pet.amount<=20000 && anflag==1))
+                        console.log("@@@@@@@@@@@@@@@@@@ "+pet.petId +" | "+pet.amount +" | "+anflag +" | "+bmflag +" | "+attrstr);
+                    else if(anflag > 1 && pet.amount <=30000 )
+                        console.log("****************** "+pet.petId +" | "+pet.amount +" | "+anflag +" | "+bmflag +" | "+attrstr);
+                    // else if(bmflag == 1)
+                    //     console.log("^^^^^^^^^^^^^^^^^^ "+pet.petId +" | "+pet.amount);
+                    continue;
+                }
+                // else{
+                //     if(anflag == 1 && bmflag == 1)
+                //         console.log("%%%%%%%%%%%%%%%%%% "+pet.petId +" | "+pet.amount +" | "+bmflag);
+                //     if(pet.amount<1000)
+                //         console.log("@@@@@@@@@@@@@@@@@@ "+pet.petId);
+                // }
 
                 // const yzm = await axios.post(apiGen, {
                 //     "requestId": time,
@@ -206,7 +215,7 @@ function sleep(ms) {
         } catch (e) {
 
             // console.log(e.code)
-            // cnt--;
+            cnt--;
 
         }
     }
